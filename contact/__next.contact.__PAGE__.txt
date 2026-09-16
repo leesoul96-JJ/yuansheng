@@ -1,0 +1,24 @@
+1:"$Sreact.fragment"
+2:I[47257,["/yuansheng/_next/static/chunks/07un6-f86-e28.js"],"ClientPageRoot"]
+3:I[78299,["/yuansheng/_next/static/chunks/07un6-f86-e28.js","/yuansheng/_next/static/chunks/3ghd9orgz0ddw.js"],"default"]
+6:I[97367,["/yuansheng/_next/static/chunks/07un6-f86-e28.js"],"OutletBoundary"]
+7:"$Sreact.suspense"
+b:I[97367,["/yuansheng/_next/static/chunks/07un6-f86-e28.js"],"ViewportBoundary"]
+c:I[97367,["/yuansheng/_next/static/chunks/07un6-f86-e28.js"],"MetadataBoundary"]
+d:I[27201,["/yuansheng/_next/static/chunks/07un6-f86-e28.js"],"IconMark"]
+f:I[39756,["/yuansheng/_next/static/chunks/07un6-f86-e28.js"],"default"]
+10:I[37457,["/yuansheng/_next/static/chunks/07un6-f86-e28.js"],"default"]
+a:X
+12:X
+12:C
+0:{"buildId":"s62ofN-g-QIKlRuaHYLJf","data":[{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"Component":"$3","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@4","$@5"]}}],[["$","script","script-0",{"src":"/yuansheng/_next/static/chunks/3ghd9orgz0ddw.js","async":true}]],["$","$L6",null,{"children":["$","$7",null,{"name":"Next.MetadataOutlet","children":"$@8"}]}]]}],"isPartial":"$@9","staleTime":"$a","varyParams":null},{"rsc":["$","$1","h",{"children":[null,["$","$Lb",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$Lc",null,{"children":["$","$7",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"YUANSHENG 源生万象 | Origin Insight — Ancient Wisdom for Modern Life"}],["$","meta","1",{"name":"description","content":"源生万象 — From the source, all phenomena arise. Life panorama readings, yearly guidance, monthly insights, and premium ritual products grounded in classical Chinese wisdom."}],["$","link","2",{"rel":"icon","href":"/yuansheng/favicon.ico?favicon.2vob68tjqpejf.ico","sizes":"256x256","type":"image/x-icon"}],["$","$Ld","3",{}]]}]}]}],null]}],"isPartial":"$@e","staleTime":"$a","varyParams":null},{"rsc":["$","$1","c",{"children":[null,["$","$Lf",null,{"parallelRouterKey":"children","template":["$","$L10",null,{}]}]]}],"isPartial":"$@11","staleTime":"$a","varyParams":"$12"}],"isUpgradeableISRFallback":false,"a":"$@13","rootVaryParams":null,"needsRuntimeRequest":"$@14"}
+4:{}
+5:"$0:data:0:rsc:props:children:0:props:serverProvidedParams:params"
+8:null
+14:true
+a:300
+a:C
+13:0
+e:"$undefined"
+11:"$undefined"
+9:"$undefined"
