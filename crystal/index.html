@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>五行水晶 · 源生万象</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px;
+    background: #0a0a0a; color: #f5f5f7;
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    overflow: hidden;
+  }
+  h1 {
+    font-size: 14px; font-weight: 500; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #6e6e73; margin-top: -20px;
+    position: relative; z-index: 10;
+    transition: opacity 0.3s;
+  }
+  .element-label {
+    font-size: 32px; font-weight: 600; letter-spacing: -0.02em;
+    position: relative; z-index: 10; margin-bottom: 8px;
+  }
+  crystal-avatar { width: 420px; height: 480px; display: block; }
+  .field { position: relative; width: 300px; height: 48px; margin-top: 4px; }
+  .field input {
+    position: absolute; inset: 0; z-index: 2; width: 100%;
+    padding: 0 20px; border: none; outline: none;
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 15px; color: #f5f5f7; text-align: center;
+  }
+  .field input::placeholder { color: #6e6e73; opacity: 0.5; }
+  .hint {
+    font-size: 11px; color: #6e6e73; letter-spacing: 0.04em;
+    position: relative; z-index: 10; margin-top: 2px;
+  }
+  .enter-btn {
+    opacity: 0; pointer-events: none;
+    margin-top: 18px; padding: 10px 28px;
+    font-size: 13px; font-weight: 500;
+    color: #fff; background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 999px; cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.25,0.46,0.45,0.94);
+    position: relative; z-index: 10;
+    backdrop-filter: blur(8px);
+    letter-spacing: 0.04em;
+    font-family: inherit;
+  }
+  .enter-btn:hover {
+    background: rgba(255,255,255,0.15);
+    transform: scale(1.03);
+  }
+  .enter-btn.visible {
+    opacity: 1; pointer-events: auto;
+  }
+</style>
+</head>
+<body>
+  <p class="element-label" id="elementLabel">✦ 翠晶</p>
+  <h1>移动鼠标 · 输入你的名字</h1>
+  <crystal-avatar seed="源"></crystal-avatar>
+  <div class="field">
+    <sketchy-box></sketchy-box>
+    <input id="username" placeholder="输入姓名或元素…" maxlength="20" autocomplete="off" spellcheck="false">
+  </div>
+  <p class="hint">木 · 火 · 土 · 金 · 水</p>
+  <button class="enter-btn" id="enterBtn">进入源生万象 →</button>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ── seeded random ───────────────────────────────────────────── */
+function hashSeed(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+  h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+function mulberry32(a) {
+  return function () {
+    a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rngFrom = (str) => mulberry32(hashSeed(str));
+const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
+const jit = (rng, a) => (rng() - 0.5) * 2 * a;
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* ── brush engine ────────────────────────────────────────────── */
+const INK = '#f5f5f7';
+const BG = '#0a0a0a';
+function strokePts(ctx, rng, pts, o = {}) {
+  const { w = 3, passes = 2, wob = 2, color = INK, alpha = 0.7, close = false } = o;
+  const width = Math.max(1, w * 0.5); const wobble = wob * 1.6;
+  ctx.strokeStyle = color; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (let p = 0; p < passes; p++) {
+    ctx.globalAlpha = alpha * (p ? 0.35 : 1);
+    ctx.lineWidth = Math.max(1, width * (0.7 + rng() * 0.6));
+    const q = pts.map(pt => [pt[0] + jit(rng, wobble), pt[1] + jit(rng, wobble)]);
+    ctx.beginPath(); ctx.moveTo(q[0][0], q[0][1]);
+    for (let i = 1; i < q.length; i++) {
+      const a = q[i - 1], b = q[i];
+      ctx.quadraticCurveTo(a[0], a[1], (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+    }
+    const last = q[q.length - 1]; ctx.lineTo(last[0], last[1]);
+    if (close) ctx.closePath(); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+function ellipsePts(cx, cy, rx, ry, n = 18, a0 = 0, a1 = Math.PI * 2) {
+  const pts = [];
+  for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; pts.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]); }
+  return pts;
+}
+function line(ctx, rng, x0, y0, x1, y1, o = {}) {
+  const pts = []; for (let i = 0; i <= 4; i++) pts.push([lerp(x0, x1, i / 4), lerp(y0, y1, i / 4)]);
+  strokePts(ctx, rng, pts, o);
+}
+function polyFill(ctx, rng, pts, color, alpha = 1) {
+  ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+}
+function blobFill(ctx, rng, cx, cy, rx, ry, color, alpha = 1) {
+  const pts = ellipsePts(cx, cy, rx, ry, 14).map(p => [p[0] + jit(rng, rx * 0.06), p[1] + jit(rng, ry * 0.06)]);
+  polyFill(ctx, rng, pts, color, alpha);
+}
+
+/* ── Crystal Elements ────────────────────────────────────────── */
+const ELEMENTS = {
+  wood: {
+    label: '翠晶 · 木',
+    colors: { primary: '#34d399', light: '#6ee7b7', dark: '#065f46', accent: '#a7f3d0', glow: 'rgba(52,211,153,0.2)' },
+    spikeShape: 'prism', // tall hexagonal
+    spikeCount: [3, 6], facets: 6, roughness: 0.15,
+  },
+  fire: {
+    label: '炎晶 · 火',
+    colors: { primary: '#f87171', light: '#fca5a5', dark: '#7f1d1d', accent: '#fecaca', glow: 'rgba(248,113,113,0.2)' },
+    spikeShape: 'flame',
+    spikeCount: [4, 8], facets: 4, roughness: 0.12,
+  },
+  earth: {
+    label: '珀晶 · 土',
+    colors: { primary: '#fbbf24', light: '#fde68a', dark: '#92400e', accent: '#fef3c7', glow: 'rgba(251,191,36,0.2)' },
+    spikeShape: 'geode',
+    spikeCount: [2, 5], facets: 3, roughness: 0.3,
+  },
+  metal: {
+    label: '钻晶 · 金',
+    colors: { primary: '#e5e7eb', light: '#ffffff', dark: '#6b7280', accent: '#f9fafb', glow: 'rgba(229,231,235,0.15)' },
+    spikeShape: 'diamond',
+    spikeCount: [3, 6], facets: 8, roughness: 0.08,
+  },
+  water: {
+    label: '澜晶 · 水',
+    colors: { primary: '#60a5fa', light: '#93c5fd', dark: '#1e3a5f', accent: '#dbeafe', glow: 'rgba(96,165,250,0.2)' },
+    spikeShape: 'cluster',
+    spikeCount: [5, 10], facets: 4, roughness: 0.18,
+  },
+};
+
+/* ── Crystal geometry generators ─────────────────────────────── */
+function genSpikePts(cx, base, w, h, shape, rng) {
+  // Generate a single crystal spike polygon
+  const r = (1 + rng() * 0.3);
+  const wa = w * r, wb = w * (0.5 + rng() * 0.3), wc = w * (0.15 + rng() * 0.2);
+  const ha = h * r, hb = h * (0.2 + rng() * 0.15);
+
+  switch (shape) {
+    case 'prism': // Hexagonal prism
+      return [[cx, base], [cx - wa * 0.35, base - ha * 0.15], [cx - wa * 0.3, base - ha * 0.5],
+              [cx - wc, base - ha * 0.78], [cx, base - ha], [cx + wc, base - ha * 0.78],
+              [cx + wa * 0.3, base - ha * 0.5], [cx + wa * 0.35, base - ha * 0.15], [cx, base]];
+
+    case 'flame': // Flame-like rhombus
+      return [[cx - wa * 0.25, base - ha * 0.1], [cx - wa * 0.4, base - ha * 0.4],
+              [cx - wc, base - ha * 0.78], [cx, base - ha * rng() * 0.15 - ha * 0.92],
+              [cx + wc, base - ha * 0.78], [cx + wa * 0.4, base - ha * 0.4], [cx + wa * 0.25, base - ha * 0.1]];
+
+    case 'geode': // Rounded bumpy
+      const n = 10; const pts = [];
+      for (let i = 0; i <= n; i++) {
+        const t = i / n; const a = t * Math.PI;
+        const rr = (0.5 + Math.sin(t * Math.PI * 3) * 0.2) * (1 - t * 0.5);
+        pts.push([cx + Math.cos(a - Math.PI / 2) * wa * rr, base + Math.sin(a - Math.PI / 2) * ha * rr]);
+      }
+      return pts;
+
+    case 'diamond': // Sharp octahedron
+      return [[cx, base - ha], [cx + wb * 0.6, base - ha * 0.6], [cx + wc, base - ha * 0.2],
+              [cx + wc * 0.8, base + hb], [cx, base + ha * 0.1],
+              [cx - wc * 0.8, base + hb], [cx - wc, base - ha * 0.2], [cx - wb * 0.6, base - ha * 0.6], [cx, base - ha]];
+
+    case 'cluster': // Multiple small overlapping spikes per spike
+      return [[cx - wa * 0.2, base - ha * 0.1], [cx - wa * 0.3, base - ha * 0.45],
+              [cx, base - ha * 0.92], [cx + wa * 0.3, base - ha * 0.45], [cx + wa * 0.2, base - ha * 0.1]];
+  }
+}
+
+/* ── Drawing functions ───────────────────────────────────────── */
+function drawCrystalBody(ctx, W, H, rng, cr) {
+  const pal = cr.pal, cx = W / 2;
+  const base = H * 0.78 + jit(rng, 3);
+  const totalH = H * 0.68, totalW = W * 0.32;
+
+  // Multiple spikes
+  const nSpikes = cr.spikeCount;
+  for (let i = 0; i < nSpikes; i++) {
+    const fi = i / nSpikes;
+    const xOff = (fi - 0.5) * totalW * 0.85;
+    const w = totalW / nSpikes * (0.7 + rng() * 0.6);
+    const h = totalH * (0.5 + rng() * 0.5);
+    const yOff = -h * (0.1 + rng() * 0.35);
+
+    const pts = genSpikePts(cx + xOff, base + yOff, w, h, cr.spikeShape, rng);
+
+    // Back-face fill (darker)
+    polyFill(ctx, rng, pts, pal.dark, 0.6);
+    // Main fill
+    polyFill(ctx, rng, pts, pal.primary, 0.8);
+    // Outline
+    strokePts(ctx, rng, pts, { w: 3, wob: 2, color: pal.light, alpha: 0.7, close: true });
+
+    // Facet lines
+    const nFacets = cr.facets;
+    for (let j = 1; j < nFacets; j++) {
+      const ft = j / nFacets;
+      const fx = lerp(pts[0][0], pts[Math.floor(pts.length / 2)][0], ft);
+      const fy = lerp(pts[0][1], pts[Math.floor(pts.length / 2)][1], ft);
+      const fw = totalW * 0.15 * (1 - ft);
+      strokePts(ctx, rng, [[fx - fw * 0.5, fy], [fx + fw * 0.5, fy + jit(rng, 4)]],
+        { w: 1.5, passes: 1, color: pal.light, alpha: 0.2, wob: 1 });
+    }
+  }
+
+  // Crystal glow at base
+  blobFill(ctx, rng, cx, base, totalW * 0.6, 15, pal.glow, 1);
+
+  // Sparkle highlights
+  for (let i = 0; i < cr.sparkleN; i++) {
+    const sx = cx + jit(rng, totalW * 0.8);
+    const sy = base - totalH * (0.1 + rng() * 0.85);
+    const ss = 1.5 + rng() * 3;
+    strokePts(ctx, rng, [[sx - ss, sy], [sx + ss, sy], [sx, sy - ss], [sx, sy + ss]],
+      { w: 1.5, passes: 1, color: pal.light, alpha: 0.6, wob: 0.5 });
+  }
+
+  // Small crystal clusters at base
+  for (let i = 0; i < 3 + rng() * 3; i++) {
+    const sx = cx + jit(rng, totalW * 0.7);
+    const sy = base + 8 + rng() * 12;
+    const sw = 3 + rng() * 5, sh = 4 + rng() * 8;
+    const pts = [[sx, sy], [sx - sw * 0.5, sy - sh], [sx + sw * 0.5, sy - sh], [sx, sy]];
+    polyFill(ctx, rng, pts, pal.primary, 0.4);
+    strokePts(ctx, rng, pts, { w: 2, passes: 1, color: pal.light, alpha: 0.3, close: true });
+  }
+}
+
+function drawGround(ctx, W, H, rng) {
+  const pts = [];
+  for (let i = 0; i <= 20; i++) pts.push([W * i / 20, H * 0.47 + jit(rng, 2)]);
+  strokePts(ctx, rng, pts, { w: 2, wob: 2, color: INK, alpha: 0.12, passes: 1 });
+}
+
+/* ── makePart (canvas-textured plane) ────────────────────────── */
+function makePart(pxW, pxH, worldW, worldH, z = 0) {
+  const canvas = document.createElement('canvas');
+  canvas.width = pxW; canvas.height = pxH;
+  const ctx = canvas.getContext('2d');
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(worldW, worldH),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+  );
+  mesh.position.z = z;
+  return {
+    mesh, tex,
+    redraw(fn) { ctx.clearRect(0, 0, pxW, pxH); fn(ctx, pxW, pxH); tex.needsUpdate = true; },
+    dispose() { tex.dispose(); mesh.material.dispose(); mesh.geometry.dispose(); },
+  };
+}
+
+/* ── Crystal class ────────────────────────────────────────────── */
+const CRYSTAL_NAMES = ['翠晶', '炎晶', '珀晶', '钻晶', '澜晶'];
+
+function elementFromSeed(rng) {
+  const keys = Object.keys(ELEMENTS);
+  return keys[Math.floor(rng() * keys.length)];
+}
+
+class CrystalFormation {
+  constructor(seed) {
+    this.seed = seed;
+    this.boilN = 0;
+    const rng = this.rng = rngFrom(seed);
+
+    this.element = elementFromSeed(rng);
+    this.el = ELEMENTS[this.element];
+    this.pal = this.el.colors;
+    this.spikeCount = this.el.spikeCount[0] + Math.floor(rng() * (this.el.spikeCount[1] - this.el.spikeCount[0]));
+    this.spikeShape = this.el.spikeShape;
+    this.facets = this.el.facets;
+    this.sparkleN = 3 + Math.floor(rng() * 5);
+
+    // Animation state
+    this.state = { sparkle: false, lookX: 0, lookY: 0 };
+    this.phase = rng() * Math.PI * 2;
+    this.pulseRate = 0.8 + rng() * 0.6;
+    this.rotRate = 0.3 + rng() * 0.4;
+    this.sparkleRate = 1 + rng() * 2;
+    this.nextSparkle = 0.5 + rng() * 3;
+    this.sparkleEnd = 0;
+
+    this.yaw = 0; this.pitch = 0;
+    this.yawT = 0; this.pitchT = 0;
+    this.jumpStart = null;
+
+    this.parts = [];
+    this.build(rng);
+  }
+
+  boilRng() { return rngFrom(this.seed + ':' + (this.boilN++)); }
+  track(part) { this.parts.push(part); return part; }
+
+  build(rng) {
+    this.root = new THREE.Group();
+    this.body = new THREE.Group();
+    this.root.add(this.body);
+
+    this.bodyScale = 0.65 + rng() * 0.2;
+    this.body.scale.setScalar(this.bodyScale);
+
+    // Main crystal body
+    this.mainCrystal = this.track(makePart(320, 320, 0.95, 0.95, 0.02));
+    this.mainCrystal.redraw((c, w, h) => drawCrystalBody(c, w, h, rng, this));
+    this.mainCrystal.mesh.position.y = 0.15;
+    this.body.add(this.mainCrystal.mesh);
+
+    // Ground
+    this.ground = this.track(makePart(512, 32, 1.5, 1.5 * 32 / 512));
+    this.ground.redraw((c, w, h) => drawGround(c, w, h, rng));
+    this.ground.mesh.position.set(0, -0.01, -0.05);
+    this.body.add(this.ground.mesh);
+  }
+
+  update(t, dt) {
+    const ph = this.phase;
+
+    // Pulse
+    const pulse = Math.sin(t * this.pulseRate + ph);
+    this.mainCrystal.mesh.scale.set(1 + pulse * 0.018, 1 + pulse * 0.012, 1);
+
+    // Slow rotation
+    this.root.rotation.y = Math.sin(t * this.rotRate + ph * 0.5) * 0.15 + this.yaw * 0.3;
+    this.root.rotation.x = Math.sin(t * this.rotRate * 0.7 + ph) * 0.05 + this.pitch * 0.2;
+
+    // Bob
+    this.body.position.y = Math.sin(t * this.pulseRate * 0.5 + ph) * 0.015;
+
+    // Sparkle
+    if (!this.state.sparkle && t > this.nextSparkle) {
+      this.state.sparkle = true;
+      this.sparkleEnd = t + 0.08 + this.rng() * 0.06;
+      this.redraw();
+    } else if (this.state.sparkle && t > this.sparkleEnd) {
+      this.state.sparkle = false;
+      this.nextSparkle = t + 2 + this.rng() * 4;
+      this.redraw();
+    }
+
+    // Look tracking
+    if (t > this.glanceUntil) {
+      this.yawT = jit(this.rng, 0.2);
+      this.pitchT = jit(this.rng, 0.1);
+      this.state.lookX = clamp(this.yawT * 3, -1, 1);
+      this.state.lookY = clamp(-this.pitchT * 4, -1, 1);
+      this.glanceUntil = t + 1.5 + this.rng() * 3;
+    }
+
+    const k = Math.min(1, dt * 4);
+    this.yaw = lerp(this.yaw, this.yawT, k);
+    this.pitch = lerp(this.pitch, this.pitchT, k);
+  }
+
+  redraw() {
+    this.mainCrystal.redraw((c, w, h) => drawCrystalBody(c, w, h, this.boilRng(), this));
+  }
+
+  trackLook(nx, ny) {
+    this.yawT = clamp(nx * 0.25, -0.25, 0.25);
+    this.pitchT = clamp(-ny * 0.12, -0.12, 0.12);
+    this.state.lookX = clamp(nx, -1, 1);
+    this.state.lookY = clamp(ny, -1, 1);
+    this.glanceUntil = this.holdUntil + 0.8;
+  }
+
+  celebrate(t) {
+    this.jumpStart = t;
+    this.yawT = 0; this.pitchT = 0.1;
+    this.state.lookX = 0; this.state.lookY = -0.6;
+    this.glanceUntil = t + 1.5;
+  }
+
+  dispose() { for (const p of this.parts) p.dispose(); }
+}
+
+/* ── <crystal-avatar> custom element ─────────────────────────── */
+class CrystalAvatar extends HTMLElement {
+  static observedAttributes = ['seed'];
+
+  #seed = '源';
+  #crystal = null;
+  #ready = false;
+
+  set seed(v) {
+    v = String(v ?? '').trim() || '源';
+    if (v === this.#seed) return;
+    this.#seed = v;
+    if (this.#ready) this.#rebuild();
+  }
+  get seed() { return this.#seed; }
+
+  attributeChangedCallback(name, _old, val) { if (val != null && name === 'seed') this.seed = val; }
+
+  connectedCallback() {
+    if (this.#ready) return;
+    this.style.cssText = 'display:block;position:relative;overflow:hidden;';
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.domElement.style.cssText = 'position:absolute;inset:0;display:block;';
+    this.appendChild(this.renderer.domElement);
+
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 60);
+    this.camera.position.z = 20;
+    this.clock = new THREE.Clock();
+    this.lastT = 0;
+
+    this.ground = makePart(512, 32, 1.5, 1.5 * 32 / 512);
+    this.ground.redraw((c, w, h) => drawGround(c, w, h, rngFrom('crystal-ground')));
+    this.ground.mesh.position.set(0, -0.01, -0.05);
+    this.scene.add(this.ground.mesh);
+
+    this.resizeObserver = new ResizeObserver(() => this.#resize());
+    this.resizeObserver.observe(this);
+
+    this.#ready = true;
+    this.#rebuild();
+    this.#resize();
+
+    const loop = () => {
+      this.raf = requestAnimationFrame(loop);
+      const t = this.clock.getElapsedTime();
+      const dt = Math.min(0.05, t - this.lastT);
+      this.lastT = t;
+      this.#crystal?.update(t, dt);
+      this.renderer.render(this.scene, this.camera);
+    };
+    loop();
+  }
+
+  disconnectedCallback() {
+    cancelAnimationFrame(this.raf);
+    this.resizeObserver?.disconnect();
+    if (this.#crystal) { this.scene.remove(this.#crystal.root); this.#crystal.dispose(); }
+    this.ground?.dispose();
+    this.renderer?.dispose();
+  }
+
+  #rebuild() {
+    const prev = this.#crystal;
+    if (prev) { this.scene.remove(prev.root); prev.dispose(); }
+
+    const cr = this.#crystal = new CrystalFormation(this.#seed);
+    this.scene.add(cr.root);
+
+    // Update element label
+    const el = document.getElementById('elementLabel');
+    if (el) el.textContent = '✦ ' + cr.el.label;
+  }
+
+  #resize() {
+    const w = this.clientWidth || 300, h = this.clientHeight || 320;
+    const aspect = w / h;
+    this.renderer.setSize(w, h);
+    const viewH = Math.max(2.8, 2.2 / aspect);
+    const cy = 0.8;
+    this.camera.left = -viewH * aspect / 2;
+    this.camera.right = viewH * aspect / 2;
+    this.camera.top = cy + viewH / 2;
+    this.camera.bottom = cy - viewH / 2;
+    this.camera.updateProjectionMatrix();
+  }
+
+  track(nx, ny) {
+    const cr = this.#crystal; if (!cr) return;
+    cr.trackLook(nx, ny);
+  }
+
+  look(nx) {
+    const cr = this.#crystal; if (!cr) return;
+    cr.yawT = nx * 0.3; cr.pitchT = -0.12;
+    cr.state.lookX = clamp(nx * 2, -1, 1); cr.state.lookY = 0.7;
+    cr.glanceUntil = this.clock.getElapsedTime() + 2.6;
+  }
+
+  celebrate() { this.#crystal?.celebrate(this.clock.getElapsedTime()); }
+}
+customElements.define('crystal-avatar', CrystalAvatar);
+
+/* ── <sketchy-box> ───────────────────────────────────────────── */
+class SketchyBox extends HTMLElement {
+  connectedCallback() {
+    if (this.canvas) return;
+    this.style.cssText += ';display:block;position:absolute;inset:0;pointer-events:none;';
+    this.canvas = document.createElement('canvas');
+    this.canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
+    this.appendChild(this.canvas);
+    this.seed = 'box-' + Math.floor(Math.random() * 1e9);
+    this.resizeObserver = new ResizeObserver(() => this.#draw());
+    this.resizeObserver.observe(this);
+    this.#draw();
+  }
+  disconnectedCallback() { this.resizeObserver?.disconnect(); }
+  #draw() {
+    const w = this.clientWidth, h = this.clientHeight;
+    if (!w || !h) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.canvas.width = w * dpr; this.canvas.height = h * dpr;
+    const ctx = this.canvas.getContext('2d'); ctx.scale(dpr, dpr);
+    const rng = rngFrom(this.seed); const m = 8;
+    const overshoot = () => 2 + rng() * 6;
+    const side = (x0, y0, x1, y1) => {
+      const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
+      const ux = dx / len, uy = dy / len;
+      const o1 = overshoot(), o2 = overshoot();
+      const sx = x0 - ux * o1, sy = y0 - uy * o1, ex = x1 + ux * o2, ey = y1 + uy * o2;
+      const n = Math.max(3, Math.round(len / 50));
+      const pts = [];
+      for (let i = 0; i <= n; i++) pts.push([sx + (ex - sx) * i / n, sy + (ey - sy) * i / n]);
+      strokePts(ctx, rng, pts, { w: 2.5, wob: 1.8, color: '#6e6e73', passes: 1, alpha: 0.5 });
+    };
+    side(m, m + jit(rng, 2), w - m, m + jit(rng, 2));
+    side(w - m + jit(rng, 2), m, w - m + jit(rng, 2), h - m);
+    side(w - m, h - m + jit(rng, 2), m, h - m + jit(rng, 2));
+    side(m + jit(rng, 2), h - m, m + jit(rng, 2), m);
+  }
+}
+customElements.define('sketchy-box', SketchyBox);
+
+/* ── Page wiring ─────────────────────────────────────────────── */
+const CELEBRATE_DELAY = 2000;
+const avatar = document.querySelector('crystal-avatar');
+const input = document.getElementById('username');
+const elLabel = document.getElementById('elementLabel');
+
+let followMouse = true;
+let idleTimer;
+
+window.addEventListener('mousemove', (e) => {
+  if (!followMouse) return;
+  const r = avatar.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top + r.height * 0.42;
+  avatar.track((e.clientX - cx) / (r.width / 2), (e.clientY - cy) / (r.height / 2));
+});
+
+function armCelebration() {
+  clearTimeout(idleTimer);
+  if (!input.value.trim()) return;
+  idleTimer = setTimeout(() => avatar.celebrate(), CELEBRATE_DELAY);
+}
+
+input.addEventListener('input', () => {
+  avatar.seed = input.value;
+  armCelebration();
+  if (input.value.trim()) {
+    document.getElementById('enterBtn').classList.add('visible');
+  } else {
+    document.getElementById('enterBtn').classList.remove('visible');
+  }
+});
+
+document.getElementById('enterBtn').addEventListener('click', () => {
+  window.location.href = '/yuansheng/app/';
+});
+
+input.addEventListener('focus', () => { followMouse = false; });
+input.addEventListener('blur', () => { followMouse = true; });
+</script>
+</body>
+</html>
