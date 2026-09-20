@@ -2,73 +2,58 @@ import Link from 'next/link';
 
 const footerSections = [
   {
-    title: 'Navigate',
+    title: '导航',
     links: [
-      { label: 'Services', href: '/services' },
-      { label: 'Products', href: '/products' },
-      { label: 'Membership', href: '/membership' },
-      { label: 'About', href: '/about' },
-      { label: 'Contact', href: '/contact' },
+      { label: '咨询服务', href: '/app/services' },
+      { label: '精选好物', href: '/app/products' },
+      { label: '会员计划', href: '/app/membership' },
+      { label: '关于我们', href: '/app/about' },
+      { label: '联系我们', href: '/app/contact' },
     ],
   },
   {
-    title: 'Services',
+    title: '咨询服务',
     links: [
-      { label: 'Life Panorama', href: '/services#panorama' },
-      { label: 'Annual Guide', href: '/services#annual' },
-      { label: 'Monthly Insight', href: '/services#monthly' },
-      { label: 'Daily Wisdom', href: '/services#daily' },
+      { label: '简易报告', href: '/app/services#snapshot' },
+      { label: '全景报告', href: '/app/services#panorama' },
+      { label: '流年指引', href: '/app/services#annual' },
+      { label: '流月洞察', href: '/app/services#monthly' },
     ],
   },
   {
-    title: 'Connect',
+    title: '联系',
     links: [
       { label: 'hello@yuansheng.co', href: 'mailto:hello@yuansheng.co' },
       { label: 'Instagram', href: '#' },
       { label: '小红书', href: '#' },
-      { label: 'WeChat', href: '#' },
+      { label: '微信', href: '#' },
     ],
   },
 ];
 
 export default function Footer() {
   return (
-    <footer className="bg-bg-secondary border-t border-border-subtle">
-      {/* Top decorative line */}
-      <div className="h-px bg-gradient-to-r from-gold/30 via-transparent to-teal/30" />
-
+    <footer className="bg-[#111] border-t border-white/[0.06]">
       <div className="max-w-7xl mx-auto px-6 py-20">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-3 mb-6">
-              <div className="w-7 h-7 border border-gold/50 flex items-center justify-center rotate-45">
-                <div className="w-2.5 h-2.5 bg-gold -rotate-45" />
-              </div>
-              <div>
-                <div className="text-xs font-medium tracking-[0.15em] text-text-primary uppercase">
-                  YUANSHENG
-                </div>
-                <div className="text-[9px] tracking-[0.2em] text-text-muted uppercase">
-                  源生万象
-                </div>
-              </div>
+            <Link href="/app" className="flex flex-col mb-6">
+              <span className="text-base font-semibold tracking-tight text-[#f5f5f7]">
+                源生万象
+              </span>
+              <span className="text-[10px] tracking-[0.15em] text-[#6e6e73] uppercase">
+                YUANSHENG
+              </span>
             </Link>
-            <p className="text-sm text-text-muted leading-relaxed max-w-xs">
-              From the source, all phenomena arise. Ancient wisdom for modern
-              self-discovery.
+            <p className="text-sm text-[#6e6e73] leading-relaxed max-w-xs">
+              融汇东方智慧与现代自我认知，找到属于你的人生坐标。
             </p>
-            {/* Bauhaus decorative element */}
-            <div className="flex gap-2 mt-6">
-              <div className="w-4 h-4 rounded-full border border-teal/40" />
-              <div className="w-4 h-4 border border-gold/40" />
-              <div className="w-4 h-4 rounded-full bg-gold/10" />
-            </div>
           </div>
 
           {footerSections.map((s) => (
             <div key={s.title}>
-              <h4 className="text-xs tracking-[0.2em] uppercase text-gold mb-5">
+              <h4 className="text-xs font-medium uppercase tracking-[0.08em] text-[#6e6e73] mb-5">
                 {s.title}
               </h4>
               <ul className="space-y-3">
@@ -76,7 +61,7 @@ export default function Footer() {
                   <li key={l.label}>
                     <Link
                       href={l.href}
-                      className="text-sm text-text-secondary hover:text-text-primary transition-colors duration-300"
+                      className="text-sm text-[#86868b] hover:text-[#f5f5f7] transition-colors duration-300"
                     >
                       {l.label}
                     </Link>
@@ -89,12 +74,12 @@ export default function Footer() {
       </div>
 
       {/* Bottom bar */}
-      <div className="border-t border-border-subtle">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-text-muted">
-            &copy; {new Date().getFullYear()} YUANSHENG &middot; 源生万象
+      <div className="border-t border-white/[0.06]">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-3">
+          <p className="text-xs text-[#6e6e73]">
+            &copy; {new Date().getFullYear()} 源生万象 · YUANSHENG
           </p>
-          <p className="text-xs text-text-muted tracking-[0.1em]">
+          <p className="text-xs text-[#6e6e73] tracking-[0.05em]">
             ORIGIN INSIGHT
           </p>
         </div>
