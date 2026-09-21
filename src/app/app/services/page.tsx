@@ -107,7 +107,7 @@ export default function ServicesPage() {
           <div className="grid md:grid-cols-4 gap-8">
             {[
               { step: '01', title: '提供出生信息', desc: '出生日期、时间、地点——我们需要的全部信息。' },
-              { step: '02', title: '绘制生命蓝图', desc: 'AI 辅助排盘，结合古典方法核对，生成你的命盘。' },
+              { step: '02', title: '绘制生命蓝图', desc: '结合你的出生信息进行古典排盘，生成你的个人命盘。' },
               { step: '03', title: '接收解读报告', desc: '一份详细的文字分析报告，48 小时内交付。' },
               { step: '04', title: '对话深化理解', desc: '一周内的私信对话，探讨报告中的共鸣与疑问。' },
             ].map((item, i) => (

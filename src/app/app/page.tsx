@@ -1,87 +1,60 @@
 'use client';
 
-import { Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
-import Crystal from '@/components/Crystal';
+import { ArrowRight, Sparkles, Compass, Moon } from 'lucide-react';
 
-// ── Inner component: reads URL search params ──
-function WelcomeContent() {
-  const searchParams = useSearchParams();
-  const name = searchParams.get('name') || '';
-
+export default function AppHomePage() {
   return (
     <>
-      {/* ═══════════ CRYSTAL WELCOME (100dvh) ═══════════ */}
-      <section className="relative min-h-[calc(100dvh-44px)] flex flex-col items-center justify-center">
-        {/* ambient glow behind crystal */}
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vmin] h-[60vmin] pointer-events-none"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(200,120,58,0.06) 0%, transparent 60%)',
-          }}
-        />
-
-        <div className="relative z-10 flex flex-col items-center w-full px-6">
-          {/* greeting */}
-          <div className="text-center mb-6 animate-fade-in">
-            <p className="text-[13px] text-white/25 tracking-[.2em] uppercase mb-2 font-playfair italic">
-              {name ? `欢迎，${name}` : '欢迎，探索者'}
-            </p>
-            <h1 className="font-playfair italic text-3xl sm:text-4xl md:text-5xl text-white/70 font-normal leading-tight">
-              你的源生水晶已凝结
+      {/* ══════ HERO ══════ */}
+      <section className="min-h-[60vh] flex items-center py-20">
+        <div className="max-w-7xl mx-auto px-6 w-full">
+          <div className="max-w-3xl">
+            <p className="hero-eyebrow hero hero-d1">源生万象 · YUANSHENG</p>
+            <h1 className="display-text mb-6 text-balance hero hero-d2">
+              探索你
+              <br />
+              内在的宇宙
             </h1>
+            <p className="text-lg md:text-xl text-[#86868b] max-w-2xl leading-relaxed mb-10 hero hero-d3">
+              融汇东方智慧与现代自我认知。
+              <br />
+              从你的出生星图出发，找到属于自己的人生坐标。
+            </p>
+            <div className="btn-group hero hero-d4">
+              <Link href="/app/services" className="btn-primary">
+                探索咨询服务 <ArrowRight size={16} />
+              </Link>
+              <Link href="/app/about" className="btn-secondary">
+                了解源生万象
+              </Link>
+            </div>
           </div>
-
-          {/* crystal */}
-          <div className="w-full max-w-[420px] mx-auto animate-scale-in" style={{ animationDelay: '0.2s' }}>
-            <Crystal name={name || 'explorer'} />
-          </div>
-
-          {/* attribution */}
-          <p className="mt-6 text-[11px] text-white/[0.06] tracking-[.15em] uppercase">
-            源于五行能量流转 · 独一无二
-          </p>
-        </div>
-
-        {/* scroll hint */}
-        <div
-          className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-fade-in"
-          style={{ animationDelay: '1.2s' }}
-        >
-          <span className="text-[10px] text-white/[0.08] tracking-[.2em] uppercase">
-            scroll to explore
-          </span>
-          <div className="w-[1px] h-10 bg-gradient-to-b from-white/[0.06] to-transparent animate-scroll-pulse" />
         </div>
       </section>
 
-      {/* ═══════════ PHILOSOPHY ═══════════ */}
-      <section className="section-padding border-t border-white/[0.04]">
+      {/* ══════ PHILOSOPHY ══════ */}
+      <section className="section-padding">
         <div className="section-container">
-          <div className="max-w-3xl">
-            <p className="section-label">核心理念</p>
-            <h2 className="section-title text-balance">
-              你的命盘不是宿命，
-              <br />
-              而是一张生命蓝图。
-            </h2>
-            <p className="section-subtitle mt-6 mb-16 max-w-xl">
-              古典五行学说描绘了能量在年、季、月、日中循环往复的节律。
-              知道你在周期中的位置，就能顺势而为，而非逆流而行。
-            </p>
-          </div>
+          <p className="section-label">核心理念</p>
+          <h2 className="section-title text-balance">
+            你的命盘不是宿命，
+            <br />
+            而是一张生命蓝图。
+          </h2>
+          <p className="section-subtitle mt-6 mb-16 max-w-xl">
+            古典五行学说描绘了能量在年、季、月、日中循环往复的节律。
+            知道你在周期中的位置，就能顺势而为，而非逆流而行。
+          </p>
 
           <div className="grid md:grid-cols-3 gap-12">
             {[
-              { num: '01', title: '认识自己', desc: '你的命盘揭示了天性的结构——你可以放大的优势，以及可以用觉知来驾驭的模式。' },
-              { num: '02', title: '把握时机', desc: '人生有起有伏。有些年份适合耕耘，有些年份适合收获。知道什么时候做什么事。' },
-              { num: '03', title: '顺应季节', desc: '每月、每日的指引帮助你感知微妙能量的流转——这些流转影响着你的心境、清晰度和机遇。' },
+              { icon: <Sparkles size={20} />, title: '认识自己', desc: '你的命盘揭示了天性的结构——你可以放大的优势，以及可以用觉知来驾驭的模式。' },
+              { icon: <Compass size={20} />, title: '把握时机', desc: '人生有起有伏。有些年份适合耕耘，有些年份适合收获。知道什么时候做什么事。' },
+              { icon: <Moon size={20} />, title: '顺应季节', desc: '每月、每日的指引帮助你感知微妙能量的流转——这些流转影响着你的心境、清晰度和机遇。' },
             ].map((item) => (
               <div key={item.title} className="clean-card">
-                <div className="step-circle">{item.num}</div>
+                <div className="step-circle">{item.icon}</div>
                 <h3 className="text-lg font-semibold text-[#f5f5f7] mb-3">{item.title}</h3>
                 <p className="text-sm text-[#86868b] leading-relaxed">{item.desc}</p>
               </div>
@@ -90,8 +63,8 @@ function WelcomeContent() {
         </div>
       </section>
 
-      {/* ═══════════ SERVICE PREVIEW ═══════════ */}
-      <section className="section-padding border-t border-white/[0.04]">
+      {/* ══════ SERVICES ══════ */}
+      <section className="section-padding border-t border-white/[0.06]">
         <div className="section-container">
           <p className="section-label">咨询服务</p>
           <h2 className="section-title mb-14 text-balance">
@@ -119,16 +92,13 @@ function WelcomeContent() {
             ))}
           </div>
 
-          <Link
-            href="/app/services"
-            className="inline-flex items-center gap-2 text-sm font-medium text-[#86868b] hover:text-[#f5f5f7] transition-colors duration-300"
-          >
+          <Link href="/app/services" className="inline-flex items-center gap-2 text-sm font-medium text-[#86868b] hover:text-[#f5f5f7] transition-colors duration-300">
             查看全部服务 <ArrowRight size={14} />
           </Link>
         </div>
       </section>
 
-      {/* ═══════════ MEMBERSHIP TEASER ═══════════ */}
+      {/* ══════ MEMBERSHIP ══════ */}
       <section className="section-padding">
         <div className="section-container">
           <div className="max-w-2xl mx-auto text-center">
@@ -142,15 +112,13 @@ function WelcomeContent() {
               每月一份五行运势报告、无限次文字问答、季节性深度解读——
               全年伴随你走过每一个能量转换的时刻。
             </p>
-            <Link href="/app/membership" className="btn-secondary">
-              $400/年 · $40/月
-            </Link>
+            <Link href="/app/membership" className="btn-secondary">$400/年 · $40/月</Link>
           </div>
         </div>
       </section>
 
-      {/* ═══════════ PRODUCTS TEASER ═══════════ */}
-      <section className="section-padding border-t border-white/[0.04]">
+      {/* ══════ PRODUCTS ══════ */}
+      <section className="section-padding border-t border-white/[0.06]">
         <div className="section-container">
           <p className="section-label">精选好物</p>
           <h2 className="section-title mb-14 text-balance">
@@ -158,7 +126,6 @@ function WelcomeContent() {
             <br />
             让智慧触手可及
           </h2>
-
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-12">
             {['五行香', '香薰蜡烛', '水晶手链', '运势月历'].map((cat) => (
               <div key={cat} className="glass-card aspect-square flex items-center justify-center text-center p-6">
@@ -166,17 +133,13 @@ function WelcomeContent() {
               </div>
             ))}
           </div>
-
-          <Link
-            href="/app/products"
-            className="inline-flex items-center gap-2 text-sm font-medium text-[#86868b] hover:text-[#f5f5f7] transition-colors duration-300"
-          >
+          <Link href="/app/products" className="inline-flex items-center gap-2 text-sm font-medium text-[#86868b] hover:text-[#f5f5f7] transition-colors duration-300">
             查看全部产品 <ArrowRight size={14} />
           </Link>
         </div>
       </section>
 
-      {/* ═══════════ CTA ═══════════ */}
+      {/* ══════ CTA ══════ */}
       <section className="section-padding">
         <div className="section-container">
           <div className="max-w-2xl mx-auto text-center">
@@ -185,47 +148,10 @@ function WelcomeContent() {
               <br />
               你的生命蓝图了吗？
             </h2>
-            <Link href="/app/contact" className="btn-primary">
-              从一份简易报告开始
-            </Link>
+            <Link href="/app/contact" className="btn-primary">从一份简易报告开始</Link>
           </div>
         </div>
       </section>
-
-      {/* animations */}
-      <style>{`
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes scale-in {
-          from { opacity: 0; transform: scale(0.92); }
-          to   { opacity: 1; transform: scale(1); }
-        }
-        @keyframes scroll-pulse {
-          0%, 100% { opacity: 0.3; transform: scaleY(0.5); }
-          50%      { opacity: 1;   transform: scaleY(1); }
-        }
-        .animate-fade-in { animation: fade-in 1s cubic-bezier(.16,1,.3,1) forwards; opacity: 0; }
-        .animate-scale-in { animation: scale-in 1.2s cubic-bezier(.16,1,.3,1) forwards; opacity: 0; }
-        .animate-scroll-pulse { animation: scroll-pulse 2s ease-in-out infinite; }
-      `}</style>
     </>
-  );
-}
-
-// ── Outer wrapper: suspense boundary for useSearchParams ──
-export default function AppHomePage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-[calc(100dvh-44px)] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border border-white/[0.1] rounded-full mx-auto mb-4" />
-          <p className="text-white/20 text-sm">凝结中...</p>
-        </div>
-      </div>
-    }>
-      <WelcomeContent />
-    </Suspense>
   );
 }

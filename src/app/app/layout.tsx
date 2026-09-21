@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 import '../globals.css';
-import 'lenis/dist/lenis.css';
-import { ReactLenis } from 'lenis/react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
@@ -25,11 +23,9 @@ export default function AppLayout({
         />
       </head>
       <body className="min-h-screen" style={{ fontFamily: "'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif" }}>
-        <ReactLenis root>
-          <Header />
-          <main className="pt-11">{children}</main>
-          <Footer />
-        </ReactLenis>
+        <Header />
+        <main className="pt-11">{children}</main>
+        <Footer />
       </body>
     </html>
   );
