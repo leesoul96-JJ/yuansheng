@@ -1,29 +1,31 @@
 import './globals.css';
 import 'lenis/dist/lenis.css';
 import { ReactLenis } from 'lenis/react';
-import { Patrick_Hand, Noto_Serif_SC } from 'next/font/google';
-
-const patrickHand = Patrick_Hand({
-  weight: '400',
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-patrick',
-});
-
-const notoSerifSC = Noto_Serif_SC({
-  weight: ['400', '600'],
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-serif-sc',
-});
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="zh-CN" className={`bg-black text-[#f5f5f7] antialiased ${patrickHand.variable} ${notoSerifSC.variable}`}>
+    <html lang="zh-CN" className="bg-black text-[#f5f5f7] antialiased">
+      <head>
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Noto+Serif+SC:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="min-h-screen">
-        <ReactLenis root>{children}</ReactLenis>
+        <ReactLenis root options={{ lerp: 0.08, smoothWheel: true }}>
+          {children}
+        </ReactLenis>
       </body>
     </html>
   );

@@ -289,14 +289,14 @@ export default function HomePage() {
       <h1
         className="relative z-10 tracking-[-0.02em] font-light text-center px-6"
         style={{
-          fontFamily: 'var(--font-serif-sc), "Songti SC", serif',
+          fontFamily: '"Noto Serif SC", "Songti SC", serif',
           fontSize: 'clamp(22px, 4.5vw, 40px)',
           lineHeight: 1.2,
           marginTop: 0,
           marginBottom: 0,
         }}
       >
-        <span className="opacity-40 text-[0.5em] block mb-1" style={{ fontFamily: 'var(--font-patrick), "Patrick Hand", cursive', letterSpacing: '0.15em' }}>欢迎来到</span>
+        <span className="opacity-40 text-[0.5em] block mb-1" style={{ fontFamily: '"Patrick Hand", "Noto Sans SC", cursive, sans-serif', letterSpacing: '0.15em' }}>欢迎来到</span>
         <span className="text-[#2c2a25] font-normal">源生万象</span>
       </h1>
 
@@ -325,7 +325,7 @@ export default function HomePage() {
             className="relative z-10 w-full h-11 bg-transparent border-none outline-none
               text-center text-[18px] tracking-[0.02em] text-[#2c2a25]
               placeholder:text-[#2c2a25]/25"
-            style={{ fontFamily: 'var(--font-patrick), "Patrick Hand", "Noto Sans SC", cursive, sans-serif' }}
+            style={{ fontFamily: '"Patrick Hand", "Noto Sans SC", cursive, sans-serif' }}
           />
         </div>
       </div>
@@ -338,7 +338,7 @@ export default function HomePage() {
           text-[#2c2a25] disabled:opacity-20 disabled:cursor-not-allowed
           transition-all duration-300 hover:scale-[1.02] active:scale-[0.97]
           flex items-center gap-1"
-        style={{ fontFamily: 'var(--font-patrick), "Patrick Hand", "Noto Sans SC", cursive, sans-serif', opacity: name.trim() ? 1 : 0.3 }}
+        style={{ fontFamily: '"Patrick Hand", "Noto Sans SC", cursive, sans-serif', opacity: name.trim() ? 1 : 0.3 }}
       >
         进入你的世界
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
