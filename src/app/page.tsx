@@ -1,339 +1,411 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
-import Crystal from '@/components/Crystal';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+
+/* ── seeded random ───────────────────────────────────────────── */
+function hashSeed(str: string): number {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  h = Math.imul(h ^ (h >>> 16), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+function mulberry32(a: number) {
+  return function () {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ── Five Elements palette ───────────────────────────────────── */
+const ELEMENTS = [
+  { label: '木', color: '#4f7f4a', glow: 'rgba(79,127,74,0.12)' },
+  { label: '火', color: '#c05a48', glow: 'rgba(192,90,72,0.12)' },
+  { label: '土', color: '#8a7a4a', glow: 'rgba(138,122,74,0.12)' },
+  { label: '金', color: '#7a7a7a', glow: 'rgba(122,122,122,0.12)' },
+  { label: '水', color: '#4a6f8a', glow: 'rgba(74,111,138,0.12)' },
+];
+
+/* ── brush helpers ───────────────────────────────────────────── */
+function strokePts(
+  ctx: CanvasRenderingContext2D,
+  rng: () => number,
+  pts: number[][],
+  o: { w?: number; alpha?: number; color?: string; passes?: number; close?: boolean; wob?: number } = {},
+) {
+  const { w = 5, passes = 2, wob = 3, color = '#2c2a25', alpha = 0.9, close = false } = o;
+  ctx.strokeStyle = color;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  for (let p = 0; p < passes; p++) {
+    ctx.globalAlpha = alpha * (p ? 0.4 : 1);
+    ctx.lineWidth = Math.max(1, w * (0.7 + rng() * 0.6));
+
+    const q = pts.map(pt => [pt[0] + (rng() - 0.5) * 2 * wob, pt[1] + (rng() - 0.5) * 2 * wob]);
+    ctx.beginPath();
+    ctx.moveTo(q[0][0], q[0][1]);
+    for (let i = 1; i < q.length; i++) {
+      const a = q[i - 1], b = q[i];
+      ctx.quadraticCurveTo(a[0], a[1], (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+    }
+    const last = q[q.length - 1];
+    ctx.lineTo(last[0], last[1]);
+    if (close) ctx.closePath();
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function ellipsePts(cx: number, cy: number, rx: number, ry: number, n = 20, a0 = 0, a1 = Math.PI * 2) {
+  const pts: number[][] = [];
+  for (let i = 0; i <= n; i++) {
+    const a = a0 + (a1 - a0) * i / n;
+    pts.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]);
+  }
+  return pts;
+}
+
+function polyFill(ctx: CanvasRenderingContext2D, rng: () => number, pts: number[][], color: string, alpha = 1) {
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function blobFill(ctx: CanvasRenderingContext2D, rng: () => number, cx: number, cy: number, rx: number, ry: number, color: string, alpha = 1) {
+  const pts = ellipsePts(cx, cy, rx, ry, 14).map(p => [
+    p[0] + (rng() - 0.5) * 2 * rx * 0.07,
+    p[1] + (rng() - 0.5) * 2 * ry * 0.07,
+  ]);
+  polyFill(ctx, rng, pts, color, alpha);
+}
+
+/* ── draw the 五行 wheel ─────────────────────────────────────── */
+function drawWuXing(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  seedRng: () => number,
+  mouseX: number,
+  mouseY: number,
+  phase: number,
+  celebrating: boolean,
+  jumpPhase: number,
+) {
+  const cx = w / 2, cy = h / 2;
+  const r = Math.min(w, h) * 0.32;
+  const rng = seedRng;
+
+  // subtle ground line
+  const groundY = cy + r * 1.55;
+  const groundPts: number[][] = [];
+  for (let i = 0; i <= 16; i++) {
+    groundPts.push([(w * i) / 16, groundY + (rng() - 0.5) * 2 * 4]);
+  }
+  strokePts(ctx, rng, groundPts, { w: 3, wob: 2, alpha: 0.15, passes: 1 });
+
+  // jump offset
+  const jumpOff = celebrating ? -Math.sin(jumpPhase * Math.PI) * r * 0.35 : 0;
+
+  // Mouse influence: slight shift
+  const mdx = (mouseX / w - 0.5) * 2 * r * 0.06;
+  const mdy = (mouseY / h - 0.5) * 2 * r * 0.06;
+
+  // Draw the five elements in a pentagram
+  for (let i = 0; i < 5; i++) {
+    const angle = (i / 5) * Math.PI * 2 - Math.PI / 2 + phase * 0.03;
+    const ex = cx + Math.cos(angle) * r + mdx;
+    const ey = cy + Math.sin(angle) * r * 0.9 + mdy + jumpOff;
+
+    const elemR = r * 0.28;
+    const el = ELEMENTS[i];
+
+    // wobble based on seed
+    const wob = 3 + (rng() * 4);
+
+    // gentle breathing
+    const breath = 1 + Math.sin(phase * 10 + i) * 0.04;
+    const br = elemR * breath;
+
+    // filled blob
+    blobFill(ctx, rng, ex, ey, br, br, el.color, celebrating ? 0.35 : 0.22);
+    // outline
+    strokePts(ctx, rng, ellipsePts(ex, ey, br, br, 16), {
+      w: 3.5 + (rng() * 1.5),
+      wob,
+      alpha: 0.7,
+      passes: 2,
+      color: el.color,
+      close: true,
+    });
+
+    // label
+    ctx.font = `${Math.round(br * 0.8)}px "Patrick Hand", "Noto Sans SC", cursive, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = el.color;
+    ctx.globalAlpha = celebrating ? 0.8 : 0.55;
+    ctx.fillText(el.label, ex, ey + 2);
+    ctx.globalAlpha = 1;
+
+    // connecting lines between adjacent elements
+    if (i > 0) {
+      const prevAngle = ((i - 1) / 5) * Math.PI * 2 - Math.PI / 2 + phase * 0.03;
+      const px = cx + Math.cos(prevAngle) * r + mdx;
+      const py = cy + Math.sin(prevAngle) * r * 0.9 + mdy + jumpOff;
+      strokePts(ctx, rng, [[px, py], [ex, ey]], {
+        w: 2,
+        wob: 1.5,
+        passes: 1,
+        alpha: 0.12,
+        color: '#2c2a25',
+      });
+    }
+  }
+}
 
 export default function HomePage() {
+  const router = useRouter();
   const [name, setName] = useState('');
-  const [userName, setUserName] = useState('');
   const [mounted, setMounted] = useState(false);
-  const crystalRef = useRef<HTMLDivElement>(null);
-  const heroRef = useRef<HTMLDivElement>(null);
+  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
+  const [celebrating, setCelebrating] = useState(false);
+  const [jumpPhase, setJumpPhase] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const phaseRef = useRef(0);
+  const rngRef = useRef(() => Math.random());
 
   useEffect(() => { setMounted(true); }, []);
 
-  // ── mouse-reactive cursor glow ──
+  // ── seed rng from name ──
   useEffect(() => {
-    if (!mounted) return;
-    const hero = heroRef.current;
-    if (!hero) return;
-    const glow = hero.querySelector('.cursor-glow') as HTMLDivElement;
-    if (!glow) return;
+    const seed = name.trim() || 'anonymous';
+    rngRef.current = mulberry32(hashSeed(seed));
+  }, [name]);
 
+  // ── mouse tracking ──
+  const handleMouseMove = useCallback((e: React.PointerEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setMousePos({ x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
+  }, []);
+
+  // ── canvas draw loop ──
+  useEffect(() => {
+    if (!mounted || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d')!;
     let raf: number;
-    let mx = 0, my = 0;
-    let gx = 0, gy = 0;
 
-    const onMove = (e: PointerEvent) => {
-      const rect = hero.getBoundingClientRect();
-      mx = e.clientX - rect.left;
-      my = e.clientY - rect.top;
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
     };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
 
-    const anim = () => {
-      gx += (mx - gx) * 0.06;
-      gy += (my - gy) * 0.06;
-      glow.style.setProperty('--gx', `${gx}px`);
-      glow.style.setProperty('--gy', `${gy}px`);
-      raf = requestAnimationFrame(anim);
+    const draw = () => {
+      phaseRef.current += 0.016;
+      const w = canvas.getBoundingClientRect().width;
+      const h = canvas.getBoundingClientRect().height;
+      if (!w || !h) { raf = requestAnimationFrame(draw); return; }
+
+      ctx.clearRect(0, 0, w, h);
+
+      // warm paper bg
+      ctx.fillStyle = '#f2ecdd';
+      ctx.fillRect(0, 0, w, h);
+
+      drawWuXing(
+        ctx, w, h,
+        rngRef.current,
+        mousePos.x * w, mousePos.y * h,
+        phaseRef.current,
+        celebrating,
+        jumpPhase,
+      );
+
+      raf = requestAnimationFrame(draw);
     };
-    hero.addEventListener('pointermove', onMove, { passive: true });
-    raf = requestAnimationFrame(anim);
+    raf = requestAnimationFrame(draw);
 
     return () => {
-      hero.removeEventListener('pointermove', onMove);
       cancelAnimationFrame(raf);
+      ro.disconnect();
     };
-  }, [mounted]);
+  }, [mounted, mousePos, celebrating, jumpPhase]);
 
+  // ── celebration on enter ──
   const handleEnter = () => {
     if (!name.trim()) return;
-    setUserName(name);
-    setTimeout(() => {
-      crystalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 120);
+    setCelebrating(true);
+    let t = 0;
+    const jump = setInterval(() => {
+      t += 0.04;
+      setJumpPhase(t);
+      if (t >= 1) {
+        clearInterval(jump);
+        // go to /app/ after celebration
+        setTimeout(() => {
+          router.push(`/app?name=${encodeURIComponent(name.trim())}`);
+        }, 200);
+      }
+    }, 20);
   };
 
-  return (
-    <div className="relative">
-      {/* ══════ HERO ─ 欢迎来到源生万象 ══════ */}
-      <section
-        ref={heroRef}
-        className="relative flex flex-col items-center justify-center overflow-hidden"
-        style={{ height: '100dvh', minHeight: 580 }}
-      >
-        {/* cursor-following glow */}
-        <div
-          className="cursor-glow absolute top-0 left-0 w-[40vmax] h-[40vmax] rounded-full pointer-events-none opacity-[0.07]"
-          style={{
-            background: 'radial-gradient(circle, #c8783a 0%, transparent 60%)',
-            transform: 'translate(calc(var(--gx,0) - 50%), calc(var(--gy,0) - 50%))',
-            transition: 'transform 0.1s',
-          }}
-        />
+  if (!mounted) return null;
 
-        {/* ambient bg */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-b from-black via-black/95 to-black/90" />
-          <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vmin] h-[60vmin]"
-            style={{
-              background: 'radial-gradient(ellipse, rgba(200,120,58,0.04) 0%, transparent 60%)',
-            }}
+  return (
+    <div
+      className="w-screen h-screen flex flex-col items-center justify-center overflow-hidden select-none"
+      style={{ background: '#f2ecdd', color: '#2c2a25' }}
+      onPointerMove={handleMouseMove}
+    >
+      {/* warm noise overlay */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.015] mix-blend-multiply"
+        style={{
+          backgroundImage:
+            `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        }}
+      />
+
+      {/* ── title ── */}
+      <h1
+        className="relative z-10 tracking-[-0.02em] font-light text-center px-6"
+        style={{
+          fontFamily: 'var(--font-serif-sc), "Songti SC", serif',
+          fontSize: 'clamp(22px, 4.5vw, 40px)',
+          lineHeight: 1.2,
+          marginTop: 0,
+          marginBottom: 0,
+        }}
+      >
+        <span className="opacity-40 text-[0.5em] block mb-1" style={{ fontFamily: 'var(--font-patrick), "Patrick Hand", cursive', letterSpacing: '0.15em' }}>欢迎来到</span>
+        <span className="text-[#2c2a25] font-normal">源生万象</span>
+      </h1>
+
+      {/* ── interactive visual ── */}
+      <div className="relative z-10 w-[min(70vw,380px)] aspect-square -my-6">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full block"
+        />
+      </div>
+
+      {/* ── name input ── */}
+      <div className="relative z-10 w-[min(60vw,300px)]">
+        <div className="relative">
+          <InputBoxCanvas seed={name || 'anonymous'} />
+          <input
+            ref={inputRef}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleEnter()}
+            placeholder="输入你的名字"
+            maxLength={16}
+            autoComplete="off"
+            spellCheck={false}
+            className="relative z-10 w-full h-11 bg-transparent border-none outline-none
+              text-center text-[18px] tracking-[0.02em] text-[#2c2a25]
+              placeholder:text-[#2c2a25]/25"
+            style={{ fontFamily: 'var(--font-patrick), "Patrick Hand", "Noto Sans SC", cursive, sans-serif' }}
           />
         </div>
+      </div>
 
-        {/* fine dust */}
-        {mounted && (
-          <>
-            <div className="absolute inset-0 opacity-[0.02] mix-blend-overlay pointer-events-none"
-              style={{
-                backgroundImage:
-                  'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
-              }}
-            />
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              {Array.from({ length: 25 }, (_, i) => (
-                <div
-                  key={i}
-                  className="absolute rounded-full"
-                  style={{
-                    left: `${(i * 19.7 + 3) % 100}%`,
-                    top: `${(i * 11.3 + 7) % 100}%`,
-                    width: `${1 + (i % 3)}px`,
-                    height: `${1 + (i % 3)}px`,
-                    opacity: 0.08 + (i % 4) * 0.04,
-                    background: i % 4 === 0 ? '#c8783a' : '#ffffff',
-                    animation: `drift ${20 + (i % 6) * 5}s ease-in-out ${i * 0.5}s infinite`,
-                    '--dx': `${(i % 7 - 3) * 30}px`,
-                    '--dy': `${(i % 5 - 2) * 30}px`,
-                  } as React.CSSProperties}
-                />
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* ── center content ── */}
-        <div className="relative z-10 flex flex-col items-center px-6 w-full">
-          {/* main title */}
-          <div
-            className="text-center mb-8"
-            style={{ animation: mounted ? 'rise 1.2s cubic-bezier(.16,1,.3,1) forwards' : 'none', opacity: 0 }}
-          >
-            <p className="text-white/15 text-[11px] tracking-[.18em] uppercase mb-4">欢迎来到</p>
-            <h1 className="text-white/90 leading-[1.05]">
-              <span className="block font-playfair italic font-normal text-5xl sm:text-7xl md:text-8xl lg:text-9xl">
-                源生
-              </span>
-              <span className="block text-5xl sm:text-7xl md:text-8xl lg:text-9xl mt-1">
-                万象
-              </span>
-            </h1>
-          </div>
-
-          {/* tagline */}
-          <p
-            className="text-white/25 text-sm sm:text-base max-w-md text-center leading-relaxed mb-10"
-            style={{ animation: mounted ? 'rise 1.2s 0.15s cubic-bezier(.16,1,.3,1) forwards' : 'none', opacity: 0 }}
-          >
-            这里可以讲述你的人生蓝图
-            <br />
-            也可以为你解开迷津
-          </p>
-
-          {/* name input */}
-          <div
-            className="flex flex-col items-center gap-4 w-full max-w-sm"
-            style={{ animation: mounted ? 'rise 1.2s 0.3s cubic-bezier(.16,1,.3,1) forwards' : 'none', opacity: 0 }}
-          >
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleEnter()}
-              placeholder="输入名字"
-              maxLength={20}
-              autoComplete="off"
-              className="w-full h-11 bg-white/[0.03] border border-white/[0.08] rounded-full
-                text-white text-[14px] text-center tracking-[.02em]
-                placeholder:text-white/15 outline-none
-                transition-all duration-400
-                focus:border-[#c8783a]/40 focus:bg-white/[0.05]
-                hover:border-white/[0.15]"
-            />
-            <button
-              onClick={handleEnter}
-              disabled={!name.trim()}
-              className="group inline-flex items-center gap-2
-                bg-[#c8783a] hover:bg-[#a86028] active:scale-[0.97] disabled:opacity-25 disabled:cursor-not-allowed
-                text-white text-[15px] font-medium
-                px-8 py-3 rounded-full
-                transition-all duration-300"
-            >
-              进入你的世界
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-300 group-hover:translate-x-0.5">
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-
-          {/* bottom flourish */}
-          <div
-            className="absolute bottom-8 left-1/2 -translate-x-1/2"
-            style={{ animation: mounted ? 'rise 1.2s 0.6s cubic-bezier(.16,1,.3,1) forwards' : 'none', opacity: 0 }}
-          >
-            <div className="w-5 h-[1px] bg-white/[0.06]" />
-          </div>
-        </div>
-      </section>
-
-      {/* ══════ CRYSTAL ─ 输入名字后揭示 ══════ */}
-      {userName && (
-        <section ref={crystalRef} className="relative min-h-screen flex flex-col items-center justify-center py-20 px-6">
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[50vmin] h-[50vmin] rounded-full"
-              style={{ background: 'radial-gradient(circle, rgba(200,120,58,0.05) 0%, transparent 50%)' }}
-            />
-          </div>
-          <div className="relative z-10 flex flex-col items-center w-full max-w-xl text-center">
-            <div className="mb-4 animate-reveal">
-              <p className="text-[13px] text-white/20 tracking-[.2em] uppercase mb-2 font-playfair italic">
-                欢迎，{userName}
-              </p>
-              <h2 className="font-playfair italic text-2xl sm:text-3xl md:text-4xl text-white/60 font-normal leading-tight">
-                你的源生水晶已凝结
-              </h2>
-            </div>
-            <div className="w-full animate-reveal" style={{ animationDelay: '0.15s' }}>
-              <Crystal name={userName} />
-            </div>
-            <p className="mt-4 text-[11px] text-white/[0.05] tracking-[.15em] uppercase animate-reveal" style={{ animationDelay: '0.3s' }}>
-              源于五行 · 独一无二
-            </p>
-            <div className="mt-8 animate-reveal" style={{ animationDelay: '0.4s' }}>
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-[1px] h-8 bg-gradient-to-b from-white/[0.04] to-transparent animate-pulse-slow" />
-                <p className="text-[10px] text-white/[0.05] tracking-[.2em] uppercase">scroll to explore</p>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ══════ PHILOSOPHY + CONTENT ══════ */}
-      {userName && (
-        <>
-          <section className="section-padding border-t border-white/[0.04]">
-            <div className="section-container">
-              <div className="max-w-3xl">
-                <p className="section-label">核心理念</p>
-                <h2 className="section-title text-balance">
-                  你的命盘不是宿命，
-                  <br />
-                  而是一张生命蓝图。
-                </h2>
-                <p className="section-subtitle mt-6 mb-16 max-w-xl">
-                  古典五行学说描绘了能量在年、季、月、日中循环往复的节律。
-                  知道你在周期中的位置，就能顺势而为，而非逆流而行。
-                </p>
-              </div>
-              <div className="grid md:grid-cols-3 gap-12">
-                {[
-                  { num: '01', title: '认识自己', desc: '你的命盘揭示了天性的结构——你可以放大的优势，以及可以用觉知来驾驭的模式。' },
-                  { num: '02', title: '把握时机', desc: '人生有起有伏。有些年份适合耕耘，有些年份适合收获。知道什么时候做什么事。' },
-                  { num: '03', title: '顺应季节', desc: '每月、每日的指引帮助你感知微妙能量的流转——这些流转影响着你的心境、清晰度和机遇。' },
-                ].map((item) => (
-                  <div key={item.title} className="clean-card">
-                    <div className="step-circle">{item.num}</div>
-                    <h3 className="text-lg font-semibold text-[#f5f5f7] mb-3">{item.title}</h3>
-                    <p className="text-sm text-[#86868b] leading-relaxed">{item.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="section-padding border-t border-white/[0.04]">
-            <div className="section-container">
-              <p className="section-label">咨询服务</p>
-              <h2 className="section-title mb-14 text-balance">从入门到全景，找到适合你的深度。</h2>
-              <div className="grid md:grid-cols-2 gap-4 mb-12">
-                {[
-                  { title: '简易报告', price: '¥88 / $12', desc: '初探命盘，快速了解你的五行格局与基础特质。', featured: false },
-                  { title: '人生全景报告', price: '¥666 / $100', desc: '人生全方位解读：财富格局、事业轨迹、关系动态——核心服务。', featured: true },
-                  { title: '流年指引', price: '¥388 / $55', desc: '年度层面的走势分析——哪些季节宜行动，哪些宜静思。', featured: false },
-                  { title: '流月洞察', price: '¥88 / $12', desc: '聚焦未来一个月的变化走势。适合在全景报告后附加。', featured: false },
-                ].map((s) => (
-                  <div key={s.title} className={`glass-card ${s.featured ? 'md:col-span-2 border-white/[0.12]' : ''}`}>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-base font-semibold text-[#f5f5f7] mb-1">{s.title}</h3>
-                        <p className="text-sm text-[#86868b]">{s.desc}</p>
-                      </div>
-                      <span className="text-sm font-semibold text-[#f5f5f7] shrink-0 ml-4 whitespace-nowrap">{s.price}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Link href="/app/services" className="inline-flex items-center gap-2 text-sm font-medium text-[#86868b] hover:text-[#f5f5f7] transition-colors duration-300">
-                查看全部服务 <ArrowRight size={14} />
-              </Link>
-            </div>
-          </section>
-
-          <section className="section-padding">
-            <div className="section-container">
-              <div className="max-w-2xl mx-auto text-center">
-                <p className="section-label">会员计划</p>
-                <h2 className="section-title text-balance">全年指引，提前为你绘制</h2>
-                <p className="section-subtitle mx-auto mb-8">
-                  每月一份五行运势报告、无限次文字问答、季节性深度解读——
-                  全年伴随你走过每一个能量转换的时刻。
-                </p>
-                <Link href="/app/membership" className="btn-secondary">$400/年 · $40/月</Link>
-              </div>
-            </div>
-          </section>
-
-          <section className="section-padding border-t border-white/[0.04]">
-            <div className="section-container">
-              <p className="section-label">精选好物</p>
-              <h2 className="section-title mb-14 text-balance">承载心念之物，让智慧触手可及</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-12">
-                {['五行香', '香薰蜡烛', '水晶手链', '运势月历'].map((cat) => (
-                  <div key={cat} className="glass-card aspect-square flex items-center justify-center text-center p-6">
-                    <span className="text-sm font-medium text-[#86868b]">{cat}</span>
-                  </div>
-                ))}
-              </div>
-              <Link href="/app/products" className="inline-flex items-center gap-2 text-sm font-medium text-[#86868b] hover:text-[#f5f5f7] transition-colors duration-300">
-                查看全部产品 <ArrowRight size={14} />
-              </Link>
-            </div>
-          </section>
-
-          <section className="section-padding">
-            <div className="section-container">
-              <div className="max-w-2xl mx-auto text-center">
-                <h2 className="display-text-sub mb-8 text-balance">准备好探索你的生命蓝图了吗？</h2>
-                <Link href="/app/contact" className="btn-primary">从一份简易报告开始</Link>
-              </div>
-            </div>
-          </section>
-        </>
-      )}
-
-      <style>{`
-        @keyframes rise { 0% { opacity:0; transform:translateY(16px); } 100% { opacity:1; transform:translateY(0); } }
-        @keyframes reveal { 0% { opacity:0; transform:scale(0.93) translateY(10px); } 100% { opacity:1; transform:scale(1) translateY(0); } }
-        @keyframes drift { 0% { transform:translate(0,0); opacity:0; } 15% { opacity:1; } 85% { opacity:1; } 100% { transform:translate(var(--dx),var(--dy)); opacity:0; } }
-        @keyframes pulse-slow { 0%,100% { opacity:0.3; transform:scaleY(0.5); } 50% { opacity:0.8; transform:scaleY(1); } }
-        .animate-reveal { animation:reveal 1.2s cubic-bezier(.16,1,.3,1) forwards; opacity:0; }
-      `}</style>
+      {/* ── enter button ── */}
+      <button
+        onClick={handleEnter}
+        disabled={!name.trim() || celebrating}
+        className="relative z-10 mt-5 text-[15px] font-medium tracking-[0.03em]
+          text-[#2c2a25] disabled:opacity-20 disabled:cursor-not-allowed
+          transition-all duration-300 hover:scale-[1.02] active:scale-[0.97]
+          flex items-center gap-1"
+        style={{ fontFamily: 'var(--font-patrick), "Patrick Hand", "Noto Sans SC", cursive, sans-serif', opacity: name.trim() ? 1 : 0.3 }}
+      >
+        进入你的世界
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12h14" />
+          <path d="m12 5 7 7-7 7" />
+        </svg>
+      </button>
     </div>
+  );
+}
+
+/* Separate component for the sketchy input box */
+function InputBoxCanvas({ seed }: { seed: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+
+    const draw = () => {
+      const w = parent.clientWidth, h = parent.clientHeight;
+      if (!w || !h) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(dpr, dpr);
+
+      const rng = mulberry32(hashSeed(seed + ':box'));
+
+      const m = 8;
+      const overshoot = () => 3 + rng() * 8;
+
+      const side = (x0: number, y0: number, x1: number, y1: number) => {
+        const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
+        const ux = dx / len, uy = dy / len;
+        const o1 = overshoot(), o2 = overshoot();
+        const sx = x0 - ux * o1, sy = y0 - uy * o1;
+        const ex = x1 + ux * o2, ey = y1 + uy * o2;
+        const n = Math.max(3, Math.round(len / 50));
+        const pts: number[][] = [];
+        for (let i = 0; i <= n; i++) {
+          const t = i / n;
+          pts.push([sx + (ex - sx) * t, sy + (ey - sy) * t]);
+        }
+        strokePts(ctx, rng, pts, { w: 3, wob: 2.5, color: '#2c2a25', passes: 2, alpha: 0.7 });
+      };
+
+      side(m, m + (rng() - 0.5) * 3, w - m, m + (rng() - 0.5) * 3);
+      side(w - m + (rng() - 0.5) * 2, m, w - m + (rng() - 0.5) * 2, h - m);
+      side(w - m, h - m + (rng() - 0.5) * 3, m, h - m + (rng() - 0.5) * 3);
+      side(m + (rng() - 0.5) * 2, h - m, m + (rng() - 0.5) * 2, m);
+    };
+
+    draw();
+    const ro = new ResizeObserver(draw);
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, [seed]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      style={{ zIndex: 1 }}
+    />
   );
 }
