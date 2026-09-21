@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>五行元素 · 源生万象</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #070708; color: #f5f5f7;
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── Liquid glass class ── */
+  .liquid-glass {
+    background: rgba(255,255,255,0.01);
+    background-blend-mode: luminosity;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: none;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.1);
+    position: relative;
+    overflow: hidden;
+  }
+  .liquid-glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.4px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.45) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* ── Full-screen canvas background ── */
+  #three-bg { position: fixed; inset: 0; z-index: 0; display: block; }
+
+  /* ── UI overlay ── */
+  .ui-overlay {
+    position: relative; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px;
+    padding: 40px 24px 48px;
+    border-radius: 24px;
+    min-width: 360px;
+  }
+  @media (max-width: 480px) {
+    .ui-overlay { min-width: 280px; padding: 32px 20px 40px; border-radius: 20px; }
+  }
+
+  .element-label {
+    font-size: 13px; font-weight: 500; letter-spacing: 0.12em;
+    text-transform: uppercase; color: rgba(245,245,247,0.5);
+    transition: opacity 0.3s;
+  }
+  .element-title {
+    font-size: 30px; font-weight: 600; letter-spacing: -0.02em;
+    margin-bottom: 4px; color: #f5f5f7;
+  }
+  @media (max-width: 480px) {
+    .element-title { font-size: 24px; }
+  }
+
+  .field {
+    position: relative; width: 280px; height: 48px; margin-top: 4px;
+  }
+  .field input {
+    position: absolute; inset: 0; z-index: 2; width: 100%;
+    padding: 0 20px; border: none; outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 15px; color: #f5f5f7; text-align: center;
+  }
+  .field input::placeholder { color: #6e6e73; opacity: 0.5; }
+
+  .hint {
+    font-size: 11px; color: rgba(110,110,115,0.7); letter-spacing: 0.04em;
+  }
+
+  .enter-btn {
+    opacity: 0; pointer-events: none;
+    margin-top: 12px;
+    padding: 10px 28px;
+    font-size: 13px; font-weight: 500;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.25,0.46,0.45,0.94);
+    letter-spacing: 0.04em;
+    font-family: inherit;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .enter-btn:hover {
+    background: rgba(255,255,255,0.14);
+    transform: scale(1.04);
+  }
+  .enter-btn.visible {
+    opacity: 1; pointer-events: auto;
+  }
+
+  /* ── element-specific accent on hover ── */
+  .element-title { transition: color 0.6s ease; }
+  .accent-wood .element-title { color: #34d399; }
+  .accent-fire .element-title { color: #f87171; }
+  .accent-earth .element-title { color: #fbbf24; }
+  .accent-metal .element-title { color: #d1d5db; }
+  .accent-water .element-title { color: #60a5fa; }
+</style>
+</head>
+<body>
+
+<canvas id="three-bg"></canvas>
+
+<div class="ui-overlay liquid-glass">
+  <p class="element-label" id="elementLabel">✦ 五行元素</p>
+  <p class="element-title" id="elementTitle">感知你的本源</p>
+
+  <div class="field liquid-glass" style="border-radius:12px;">
+    <input id="username" placeholder="输入姓名或元素…" maxlength="20" autocomplete="off" spellcheck="false">
+  </div>
+  <p class="hint">金 · 木 · 水 · 火 · 土</p>
+  <button class="enter-btn" id="enterBtn">进入源生万象 →</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ── Five Elements sphere config ──
+const ELEMENTS = [
+  { key: 'metal', label: '金 · 刚', color: '#d1d5db', emissive: '#6b7280', orbitAngle: 0, radius: 0.4, orbitR: 1.6, yBase: 0.1 },
+  { key: 'wood',  label: '木 · 生', color: '#34d399', emissive: '#065f46', orbitAngle: 72, radius: 0.45, orbitR: 1.8, yBase: -0.1 },
+  { key: 'water', label: '水 · 润', color: '#60a5fa', emissive: '#1e3a5f', orbitAngle: 144, radius: 0.42, orbitR: 1.5, yBase: 0.2 },
+  { key: 'fire',  label: '火 · 炽', color: '#f87171', emissive: '#7f1d1d', orbitAngle: 216, radius: 0.38, orbitR: 1.7, yBase: -0.15 },
+  { key: 'earth', label: '土 · 厚', color: '#fbbf24', emissive: '#92400e', orbitAngle: 288, radius: 0.44, orbitR: 1.4, yBase: 0 },
+];
+
+// ── Scene setup ──
+const canvas = document.getElementById('three-bg');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x070708, 1);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 50);
+camera.position.set(0, 1.2, 4.5);
+camera.lookAt(0, 0, 0);
+
+// ── Starfield background ──
+const starGeom = new THREE.BufferGeometry();
+const starCount = 800;
+const starPos = new Float32Array(starCount * 3);
+const starSizes = new Float32Array(starCount);
+for (let i = 0; i < starCount; i++) {
+  const r = 8 + Math.random() * 20;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  starPos[i*3] = r * Math.sin(phi) * Math.cos(theta);
+  starPos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+  starPos[i*3+2] = r * Math.cos(phi);
+  starSizes[i] = 0.5 + Math.random() * 1.5;
+}
+starGeom.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+starGeom.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+const starMat = new THREE.PointsMaterial({
+  color: '#6b7280',
+  size: 0.08,
+  transparent: true,
+  opacity: 0.6,
+  sizeAttenuation: true,
+});
+const stars = new THREE.Points(starGeom, starMat);
+scene.add(stars);
+
+// ── Ambient glow ring ──
+const ringGeom = new THREE.RingGeometry(1.8, 2.2, 64);
+const ringMat = new THREE.MeshBasicMaterial({
+  color: '#ffffff',
+  transparent: true,
+  opacity: 0.04,
+  side: THREE.DoubleSide,
+});
+const ring = new THREE.Mesh(ringGeom, ringMat);
+ring.rotation.x = -Math.PI / 2;
+ring.position.y = -0.4;
+scene.add(ring);
+
+// ── Aux ring (inner) ──
+const ring2Geom = new THREE.RingGeometry(1.2, 1.35, 48);
+const ring2Mat = new THREE.MeshBasicMaterial({
+  color: '#ffffff',
+  transparent: true,
+  opacity: 0.025,
+  side: THREE.DoubleSide,
+});
+const ring2 = new THREE.Mesh(ring2Geom, ring2Mat);
+ring2.rotation.x = -Math.PI / 2.5;
+ring2.position.y = -0.15;
+scene.add(ring2);
+
+// ── Create element spheres ──
+const spheres = [];
+const sphereGroup = new THREE.Group();
+scene.add(sphereGroup);
+
+for (const el of ELEMENTS) {
+  // Main sphere
+  const geom = new THREE.SphereGeometry(el.radius, 32, 32);
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: el.color,
+    emissive: el.emissive,
+    emissiveIntensity: 0.15,
+    metalness: 0.2,
+    roughness: 0.3,
+    transparent: true,
+    opacity: 0.88,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.4,
+  });
+  const mesh = new THREE.Mesh(geom, mat);
+
+  // Glow aura
+  const glowGeom = new THREE.SphereGeometry(el.radius * 1.6, 24, 24);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: el.color,
+    transparent: true,
+    opacity: 0.08,
+  });
+  const glow = new THREE.Mesh(glowGeom, glowMat);
+
+  // Inner shimmer core
+  const coreGeom = new THREE.SphereGeometry(el.radius * 0.35, 16, 16);
+  const coreMat = new THREE.MeshBasicMaterial({
+    color: '#ffffff',
+    transparent: true,
+    opacity: 0.25,
+  });
+  const core = new THREE.Mesh(coreGeom, coreMat);
+
+  const g = new THREE.Group();
+  g.add(glow);
+  g.add(mesh);
+  g.add(core);
+
+  sphereGroup.add(g);
+
+  // Position computed in animation loop
+  const angleRad = (el.orbitAngle / 180) * Math.PI;
+  spheres.push({
+    group: g,
+    mesh, glow, core,
+    mat, glowMat, coreMat,
+    angle: angleRad,
+    orbitR: el.orbitR,
+    yBase: el.yBase,
+    radius: el.radius,
+    speed: 0.12 + Math.random() * 0.06,
+    yBobSpeed: 0.3 + Math.random() * 0.2,
+    yBobAmp: 0.06 + Math.random() * 0.04,
+  });
+}
+
+// ── Small particle ring around elements ──
+const particleCount = 60;
+const pGeom = new THREE.BufferGeometry();
+const pPos = new Float32Array(particleCount * 3);
+for (let i = 0; i < particleCount; i++) {
+  const a = (i / particleCount) * Math.PI * 2;
+  const r = 1.9 + Math.random() * 0.3;
+  pPos[i*3] = Math.cos(a) * r;
+  pPos[i*3+1] = (Math.random() - 0.5) * 0.3;
+  pPos[i*3+2] = Math.sin(a) * r;
+}
+pGeom.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+const pMat = new THREE.PointsMaterial({
+  color: '#ffffff',
+  size: 0.015,
+  transparent: true,
+  opacity: 0.2,
+});
+const particles = new THREE.Points(pGeom, pMat);
+scene.add(particles);
+
+// ── Mouse tracking ──
+let mouseX = 0, mouseY = 0;
+let targetX = 0, targetY = 0;
+document.addEventListener('mousemove', (e) => {
+  mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+  mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
+// ── Animation ──
+const clock = new THREE.Clock();
+
+function animate() {
+  const t = clock.getElapsedTime();
+
+  // Smooth mouse follow
+  targetX += (mouseX - targetX) * 0.02;
+  targetY += (mouseY - targetY) * 0.02;
+
+  // Orbit sphere group slowly
+  sphereGroup.rotation.y = t * 0.08;
+  sphereGroup.position.x = targetX * 0.15;
+  sphereGroup.position.y = targetY * 0.1;
+
+  // Update each sphere's position within group
+  for (const s of spheres) {
+    const a = s.angle + t * s.speed;
+    s.group.position.x = Math.cos(a) * s.orbitR;
+    s.group.position.z = Math.sin(a) * s.orbitR;
+    s.group.position.y = s.yBase + Math.sin(t * s.yBobSpeed + s.angle) * s.yBobAmp;
+
+    // Subtle rotation
+    s.group.rotation.x = Math.sin(t * 0.3 + s.angle) * 0.1;
+    s.group.rotation.z = Math.cos(t * 0.2 + s.angle) * 0.1;
+
+    // Pulse emissive
+    const pulse = 0.12 + Math.sin(t * 0.6 + s.angle) * 0.08;
+    s.mat.emissiveIntensity = pulse;
+    s.glowMat.opacity = 0.05 + Math.sin(t * 0.5 + s.angle) * 0.04;
+  }
+
+  // Rotate stars slowly
+  stars.rotation.y = t * 0.003;
+  stars.rotation.x = Math.sin(t * 0.001) * 0.05;
+
+  // Ring pulse
+  ringMat.opacity = 0.03 + Math.sin(t * 0.3) * 0.015;
+  ring2Mat.opacity = 0.02 + Math.sin(t * 0.4 + 1) * 0.012;
+  ring.rotation.z = t * 0.02;
+  ring2.rotation.z = -t * 0.025;
+
+  // Particles
+  particles.rotation.y = t * 0.06;
+
+  // Camera subtle sway
+  camera.position.x = Math.sin(t * 0.04) * 0.2;
+  camera.position.z = 4.5 + Math.sin(t * 0.03) * 0.15;
+  camera.lookAt(0, targetY * 0.05, 0);
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+// ── Resize ──
+function resize() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+animate();
+
+// ── Element selector (hover on hint items sets accent) ──
+const elementKeys = ['metal', 'wood', 'water', 'fire', 'earth'];
+const uiOverlay = document.querySelector('.ui-overlay');
+const titleEl = document.getElementById('elementTitle');
+const labelEl = document.getElementById('elementLabel');
+const elementLabels = { metal: '金 · 刚', wood: '木 · 生', water: '水 · 润', fire: '火 · 炽', earth: '土 · 厚' };
+
+let currentIndex = 0;
+let accentTimeout;
+
+function updateAccent(index) {
+  uiOverlay.className = 'ui-overlay liquid-glass accent-' + elementKeys[index];
+  titleEl.textContent = elementLabels[elementKeys[index]];
+  labelEl.textContent = '✦ ' + elementKeys[index].charAt(0).toUpperCase() + elementKeys[index].slice(1);
+  currentIndex = index;
+}
+
+// Cycle through elements every 4s
+let cycleInterval = setInterval(() => {
+  updateAccent((currentIndex + 1) % 5);
+}, 4000);
+
+// ── Page wiring ──
+const input = document.getElementById('username');
+const enterBtn = document.getElementById('enterBtn');
+
+input.addEventListener('input', () => {
+  if (input.value.trim()) {
+    enterBtn.classList.add('visible');
+    // Stop cycling, stay on current element
+    clearInterval(cycleInterval);
+  } else {
+    enterBtn.classList.remove('visible');
+    // Resume cycling
+    cycleInterval = setInterval(() => {
+      updateAccent((currentIndex + 1) % 5);
+    }, 4000);
+  }
+});
+
+enterBtn.addEventListener('click', () => {
+  window.location.href = '/yuansheng/app/';
+});
+
+// Start with first element
+updateAccent(0);
+</script>
+</body>
+</html>
