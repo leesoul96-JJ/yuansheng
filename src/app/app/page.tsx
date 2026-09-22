@@ -1,25 +1,30 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Sparkles, Compass, Moon } from 'lucide-react';
+import { ArrowRight, Sparkles, Compass, Moon, Star } from 'lucide-react';
+import ElementPortal from '@/components/ElementPortal';
 
 export default function AppHomePage() {
+  const [entered, setEntered] = useState(false);
+
   return (
     <>
+      {!entered && <ElementPortal onEnter={() => setEntered(true)} />}
+      <div className={entered ? 'homepage-content homepage-content-visible' : 'homepage-content homepage-content-hidden'}>
       {/* ══════ HERO ══════ */}
-      <section className="min-h-[60vh] flex items-center py-20">
-        <div className="max-w-7xl mx-auto px-6 w-full">
-          <div className="max-w-3xl">
+      <section className="hero-surface min-h-[72vh] flex items-center py-24">
+        <div className="section-container w-full">
+          <div className="max-w-4xl">
             <p className="hero-eyebrow hero hero-d1">源生万象 · YUANSHENG</p>
             <h1 className="display-text mb-6 text-balance hero hero-d2">
-              探索你
-              <br />
-              内在的宇宙
+              看见你的
+              <span className="accent-text">生命蓝图</span>
             </h1>
             <p className="text-lg md:text-xl text-[#86868b] max-w-2xl leading-relaxed mb-10 hero hero-d3">
               融汇东方智慧与现代自我认知。
               <br />
-              从你的出生星图出发，找到属于自己的人生坐标。
+              从出生星图出发，找到属于自己的人生坐标。
             </p>
             <div className="btn-group hero hero-d4">
               <Link href="/app/services" className="btn-primary">
@@ -30,6 +35,7 @@ export default function AppHomePage() {
               </Link>
             </div>
           </div>
+          <div className="hero-orbit" aria-hidden="true"><Star size={18} /><span>ORIGIN INSIGHT</span></div>
         </div>
       </section>
 
@@ -53,7 +59,7 @@ export default function AppHomePage() {
               { icon: <Compass size={20} />, title: '把握时机', desc: '人生有起有伏。有些年份适合耕耘，有些年份适合收获。知道什么时候做什么事。' },
               { icon: <Moon size={20} />, title: '顺应季节', desc: '每月、每日的指引帮助你感知微妙能量的流转——这些流转影响着你的心境、清晰度和机遇。' },
             ].map((item) => (
-              <div key={item.title} className="clean-card">
+              <div key={item.title} className="clean-card principle-card">
                 <div className="step-circle">{item.icon}</div>
                 <h3 className="text-lg font-semibold text-[#f5f5f7] mb-3">{item.title}</h3>
                 <p className="text-sm text-[#86868b] leading-relaxed">{item.desc}</p>
@@ -128,7 +134,7 @@ export default function AppHomePage() {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-12">
             {['五行香', '香薰蜡烛', '水晶手链', '运势月历'].map((cat) => (
-              <div key={cat} className="glass-card aspect-square flex items-center justify-center text-center p-6">
+              <div key={cat} className="glass-card product-tile aspect-square flex items-center justify-center text-center p-6">
                 <span className="text-sm font-medium text-[#86868b]">{cat}</span>
               </div>
             ))}
@@ -152,6 +158,7 @@ export default function AppHomePage() {
           </div>
         </div>
       </section>
+      </div>
     </>
   );
 }

@@ -24,7 +24,7 @@ export default function AppLayout({
       </head>
       <body className="min-h-screen" style={{ fontFamily: "'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif" }}>
         <Header />
-        <main className="pt-11">{children}</main>
+        <main className="pt-14">{children}</main>
         <Footer />
       </body>
     </html>

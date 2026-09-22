@@ -72,28 +72,28 @@ export default function Header() {
   }, [searchOpen]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-11 bg-[#000000] will-change-transform">
+    <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-black/80 backdrop-blur-xl border-b border-white/[.06] will-change-transform">
       {/* Desktop nav */}
-      <div className="max-w-[1200px] mx-auto h-full flex items-center justify-between px-[18px] lg:px-[22px]">
+      <div className="max-w-[1280px] mx-auto h-full flex items-center justify-between px-5 lg:px-8">
         {/* Left: logo */}
         <Link
           href="/app"
-          className="flex items-center gap-2 text-white/70 hover:text-white transition-colors duration-300 shrink-0"
+          className="flex items-center gap-2 text-white/80 hover:text-[#d4884a] transition-colors duration-300 shrink-0"
           aria-label="源生万象"
         >
-          <span className="text-white/80"><LogoIcon /></span>
-          <span className="text-[12px] font-normal leading-none tracking-[-.01em] mt-[1px] text-white/80">
+          <span className="text-[#d4884a]"><LogoIcon /></span>
+          <span className="text-[13px] font-medium leading-none tracking-[.04em] mt-[1px] text-white/90">
             源生万象
           </span>
         </Link>
 
         {/* Center: nav links (Apple style — evenly spaced, ~20px gap) */}
-        <div className="hidden lg:flex items-center justify-center flex-1 h-full" style={{ gap: DESKTOP_NAV_GAP }}>
+        <div className="hidden lg:flex items-center justify-center flex-1 h-full" style={{ gap: 28 }}>
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="inline-flex items-center h-full text-[12px] font-normal leading-none tracking-[-.12px] transition-colors duration-300 whitespace-nowrap"
+              className="inline-flex items-center h-full text-[12px] font-normal leading-none tracking-[.04em] transition-colors duration-300 whitespace-nowrap"
               style={{
                 color: pathname === item.href ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.7)',
               }}
@@ -108,7 +108,7 @@ export default function Header() {
         </div>
 
         {/* Right: icons */}
-        <div className="flex items-center shrink-0" style={{ gap: '20px' }}>
+        <div className="flex items-center shrink-0" style={{ gap: '18px' }}>
           <button
             onClick={() => setSearchOpen(true)}
             className="text-white/70 hover:text-white transition-colors duration-300 flex items-center"
@@ -161,7 +161,7 @@ export default function Header() {
       {/* ── Mobile menu ── */}
       <div
         className={[
-          'lg:hidden fixed inset-0 top-11 bg-[#000000] z-40',
+          'lg:hidden fixed inset-0 top-14 bg-[#090706] z-40',
           'transition-all duration-300',
           mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
         ].join(' ')}
